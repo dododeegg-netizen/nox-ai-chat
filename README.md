@@ -165,4 +165,22 @@ MIT License
 
 ## 📞 支持
 
-如果您遇到问题或有建议，请创建Issue。 
+如果您遇到问题或有建议，请创建Issue。
+
+## ☕ 支持开发
+
+如果这个项目对你有帮助，可以请作者喝杯咖啡 ☕
+
+<div align="center">
+  <img src="./public/69.png" alt="收款码" width="200"/>
+</div>
+
+<div align="center">
+  <sub>扫码打赏，支持开源 🙏</sub>
+</div>
+
+---
+
+<div align="center">
+  <sub>Made with ❤️ by dododeegg-netizen</sub>
+</div>
