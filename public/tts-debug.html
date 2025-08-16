@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOX AI - TTS调试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .status-display {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .status-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .audio-player {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .voice-option {
+            padding: 15px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .voice-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .voice-option.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .voice-option .voice-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .voice-option .voice-desc {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 NOX AI</h1>
+            <p>Qwen-TTS 语音合成调试工具</p>
+        </div>
+
+        <div class="content">
+            <!-- API状态检查 -->
+            <div class="section">
+                <h2>🔍 API状态检查</h2>
+                <button class="btn" onclick="checkAPIStatus()">
+                    <span id="check-icon">🔍</span> 检查API状态
+                </button>
+                <div id="api-status" class="status-display" style="display: none;"></div>
+            </div>
+
+            <!-- 语音合成测试 -->
+            <div class="section">
+                <h2>🎵 语音合成测试</h2>
+                
+                <div class="form-group">
+                    <label for="tts-text">输入文本：</label>
+                    <textarea id="tts-text" placeholder="请输入要合成语音的文本...">你好，我是NOX，很高兴为你服务！我使用的是阿里云Qwen-TTS语音合成技术。</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>选择音色：</label>
+                    <div class="voice-grid" id="voice-grid">
+                        <!-- 音色选项将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="audio-format">音频格式：</label>
+                    <select id="audio-format">
+                        <option value="mp3">MP3</option>
+                        <option value="wav">WAV</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="testTTS()">
+                    <span id="tts-icon">🎵</span> 测试语音合成
+                </button>
+
+                <div id="tts-status" class="status-display" style="display: none;"></div>
+                <div id="audio-player" class="audio-player" style="display: none;">
+                    <audio controls style="width: 100%;">
+                        您的浏览器不支持音频播放。
+                    </audio>
+                </div>
+            </div>
+
+            <!-- 浏览器TTS测试 -->
+            <div class="section">
+                <h2>🔊 浏览器原生TTS测试</h2>
+                <p style="margin-bottom: 15px; color: #666;">作为备用方案的浏览器原生语音合成</p>
+                
+                <button class="btn" onclick="testBrowserTTS()">
+                    <span id="browser-tts-icon">🔊</span> 测试浏览器TTS
+                </button>
+                
+                <div id="browser-tts-status" class="status-display" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedVoice = 'Cherry';
+        let availableVoices = {};
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadVoiceOptions();
+        });
+
+        // 加载音色选项
+        async function loadVoiceOptions() {
+            try {
+                const response = await fetch('/api/tts', { method: 'GET' });
+                const data = await response.json();
+                
+                availableVoices = data.voices || {};
+                selectedVoice = data.defaultVoice || 'Cherry';
+                
+                renderVoiceGrid();
+            } catch (error) {
+                console.error('加载音色选项失败:', error);
+                // 使用默认音色
+                availableVoices = {
+                    'Cherry': '温婉女声(中英双语)',
+                    'Ethan': '稳重男声(中英双语)', 
+                    'Chelsie': '活力女声(中英双语)',
+                    'Serena': '优雅女声(中英双语)',
+                    'Dylan': '北京话男声',
+                    'Jada': '上海话女声',
+                    'Sunny': '四川话女声'
+                };
+                renderVoiceGrid();
+            }
+        }
+
+        // 渲染音色网格
+        function renderVoiceGrid() {
+            const grid = document.getElementById('voice-grid');
+            grid.innerHTML = '';
+            
+            Object.entries(availableVoices).forEach(([voice, description]) => {
+                const option = document.createElement('div');
+                option.className = `voice-option ${voice === selectedVoice ? 'selected' : ''}`;
+                option.onclick = () => selectVoice(voice);
+                
+                option.innerHTML = `
+                    <div class="voice-name">${voice}</div>
+                    <div class="voice-desc">${description}</div>
+                `;
+                
+                grid.appendChild(option);
+            });
+        }
+
+        // 选择音色
+        function selectVoice(voice) {
+            selectedVoice = voice;
+            renderVoiceGrid();
+        }
+
+        // 检查API状态
+        async function checkAPIStatus() {
+            const button = event.target;
+            const icon = document.getElementById('check-icon');
+            const statusDiv = document.getElementById('api-status');
+            
+            // 显示加载状态
+            icon.innerHTML = '<div class="loading"></div>';
+            button.disabled = true;
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status-display status-info';
+            statusDiv.textContent = '正在检查API状态...';
+
+            try {
+                const response = await fetch('/api/tts', { method: 'GET' });
+                const data = await response.json();
+                
+                statusDiv.className = 'status-display status-success';
+                statusDiv.textContent = `✅ API状态检查完成！
+                
+模型: ${data.model || 'qwen-tts'}
+默认音色: ${data.defaultVoice || 'Cherry'}
+支持格式: ${(data.supportedFormats || ['mp3', 'wav']).join(', ')}
+可用音色数量: ${Object.keys(data.voices || {}).length}
+
+可用音色列表:
+${Object.entries(data.voices || {}).map(([voice, desc]) => `- ${voice}: ${desc}`).join('\n')}`;
+
+            } catch (error) {
+                statusDiv.className = 'status-display status-error';
+                statusDiv.textContent = `❌ API状态检查失败: ${error.message}`;
+            } finally {
+                icon.innerHTML = '🔍';
+                button.disabled = false;
+            }
+        }
+
+        // 测试TTS
+        async function testTTS() {
+            const button = event.target;
+            const icon = document.getElementById('tts-icon');
+            const statusDiv = document.getElementById('tts-status');
+            const audioDiv = document.getElementById('audio-player');
+            const text = document.getElementById('tts-text').value.trim();
+            const format = document.getElementById('audio-format').value;
+
+            if (!text) {
+                alert('请输入要合成的文本！');
+                return;
+            }
+
+            // 显示加载状态
+            icon.innerHTML = '<div class="loading"></div>';
+            button.disabled = true;
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status-display status-info';
+            statusDiv.textContent = `正在合成语音...
+            
+文本: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}
+音色: ${selectedVoice} (${availableVoices[selectedVoice] || '未知'})
+格式: ${format.toUpperCase()}`;
+
+            audioDiv.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('text', text);
+                formData.append('voice', selectedVoice);
+                formData.append('format', format);
+
+                const startTime = Date.now();
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    
+                    if (contentType && contentType.startsWith('audio/')) {
+                        // 成功获取音频
+                        const audioBlob = await response.blob();
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        
+                        statusDiv.className = 'status-display status-success';
+                        statusDiv.textContent = `✅ 语音合成成功！
+
+响应时间: ${duration}ms
+音频大小: ${(audioBlob.size / 1024).toFixed(2)} KB
+内容类型: ${contentType}
+音色: ${selectedVoice}
+格式: ${format.toUpperCase()}`;
+
+                        // 显示音频播放器
+                        const audio = audioDiv.querySelector('audio');
+                        audio.src = audioUrl;
+                        audioDiv.style.display = 'block';
+                        
+                        // 自动播放
+                        setTimeout(() => audio.play().catch(e => console.log('自动播放失败:', e)), 100);
+                        
+                    } else {
+                        // 可能是fallback响应
+                        const result = await response.json();
+                        
+                        if (result.fallback === 'browser-tts') {
+                            statusDiv.className = 'status-display status-info';
+                            statusDiv.textContent = `⚠️ ${result.error}
+
+${result.message}
+
+将自动使用浏览器TTS播放...`;
+
+                            // 使用浏览器TTS
+                            setTimeout(() => {
+                                useBrowserTTS(text);
+                            }, 1000);
+                        } else {
+                            throw new Error(result.error || '未知错误');
+                        }
+                    }
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+
+            } catch (error) {
+                statusDiv.className = 'status-display status-error';
+                statusDiv.textContent = `❌ 语音合成失败: ${error.message}
+
+建议尝试:
+1. 检查网络连接
+2. 确认API密钥配置正确
+3. 尝试使用浏览器原生TTS
+4. 联系技术支持`;
+            } finally {
+                icon.innerHTML = '🎵';
+                button.disabled = false;
+            }
+        }
+
+        // 测试浏览器TTS
+        function testBrowserTTS() {
+            const text = document.getElementById('tts-text').value.trim();
+            if (!text) {
+                alert('请输入要合成的文本！');
+                return;
+            }
+            
+            useBrowserTTS(text);
+        }
+
+        // 使用浏览器TTS
+        function useBrowserTTS(text) {
+            const statusDiv = document.getElementById('browser-tts-status');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status-display status-info';
+            statusDiv.textContent = '正在使用浏览器TTS播放语音...';
+
+            if ('speechSynthesis' in window) {
+                // 停止之前的语音
+                speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // 尝试选择中文语音
+                const voices = speechSynthesis.getVoices();
+                const chineseVoice = voices.find(voice => 
+                    voice.lang.includes('zh') || voice.lang.includes('cmn')
+                );
+                if (chineseVoice) {
+                    utterance.voice = chineseVoice;
+                }
+                
+                utterance.rate = 1;
+                utterance.pitch = 1;
+                utterance.volume = 1;
+                
+                utterance.onstart = () => {
+                    statusDiv.className = 'status-display status-success';
+                    statusDiv.textContent = `🔊 浏览器TTS播放中...
+
+文本: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}
+使用语音: ${utterance.voice ? utterance.voice.name : '系统默认'}`;
+                };
+                
+                utterance.onend = () => {
+                    statusDiv.textContent += '\n\n✅ 播放完成！';
+                };
+                
+                utterance.onerror = (event) => {
+                    statusDiv.className = 'status-display status-error';
+                    statusDiv.textContent = `❌ 浏览器TTS播放失败: ${event.error}`;
+                };
+                
+                speechSynthesis.speak(utterance);
+            } else {
+                statusDiv.className = 'status-display status-error';
+                statusDiv.textContent = '❌ 您的浏览器不支持语音合成功能';
+            }
+        }
+
+        // 确保语音列表已加载
+        if ('speechSynthesis' in window) {
+            speechSynthesis.getVoices();
+            speechSynthesis.addEventListener('voiceschanged', () => {
+                speechSynthesis.getVoices();
+            });
+        }
+    </script>
+</body>
+</html> 

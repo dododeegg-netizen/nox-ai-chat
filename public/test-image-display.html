@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片显示测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .message {
+            max-width: 400px;
+            padding: 16px;
+            border-radius: 16px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .message img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            margin-bottom: 12px;
+            max-height: 200px;
+            object-fit: contain;
+        }
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            color: white;
+        }
+        .preview {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ 图片显示测试</h1>
+        <p>测试图片在消息框中的显示效果</p>
+        
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="previewImage()">📷 预览图片显示效果</button>
+        <button onclick="clearPreview()">🧹 清空预览</button>
+        
+        <div id="preview" class="preview"></div>
+    </div>
+
+    <script>
+        function previewImage() {
+            const fileInput = document.getElementById('imageInput');
+            const previewDiv = document.getElementById('preview');
+            
+            if (!fileInput.files[0]) {
+                alert('请先选择一张图片！');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const base64Image = e.target.result;
+                
+                // 模拟用户消息（带图片）
+                const userMessage = `
+                    <div class="message">
+                        <div style="margin-bottom: 12px;">
+                            <img src="${base64Image}" alt="上传的图片" />
+                        </div>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">请详细描述这张图片的内容，如果是一道题请帮我解答</p>
+                    </div>
+                `;
+                
+                // 模拟AI回复
+                const aiMessage = `
+                    <div class="message" style="background: rgba(76, 175, 80, 0.3);">
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">我看到了您上传的图片！这张图片展示了...</p>
+                        <button style="margin-top: 8px; padding: 6px 12px; font-size: 12px; opacity: 0.8;">🎵 播放语音</button>
+                    </div>
+                `;
+                
+                previewDiv.innerHTML = `
+                    <h3>📱 消息预览效果：</h3>
+                    <div style="display: flex; justify-content: flex-end;">
+                        ${userMessage}
+                    </div>
+                    <div style="display: flex; justify-content: flex-start;">
+                        ${aiMessage}
+                    </div>
+                    <p style="margin-top: 20px; font-size: 12px; opacity: 0.7;">
+                        ✅ 图片文件大小: ${(file.size / 1024).toFixed(1)} KB<br>
+                        ✅ 图片类型: ${file.type}<br>
+                        ✅ 图片尺寸: 将自动调整为最大高度 200px
+                    </p>
+                `;
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        function clearPreview() {
+            document.getElementById('preview').innerHTML = '';
+            document.getElementById('imageInput').value = '';
+        }
+    </script>
+</body>
+</html> 

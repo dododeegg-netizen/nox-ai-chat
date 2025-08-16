@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片上传测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ 图片上传测试</h1>
+        <p>测试NOX AI的图片识别功能</p>
+        
+        <input type="file" id="imageInput" accept="image/*">
+        <br>
+        <button onclick="testImageUpload()">🧪 测试图片上传</button>
+        <button onclick="testTextOnly()">📝 测试纯文本</button>
+        <button onclick="clearResult()">🧹 清空结果</button>
+        
+        <div id="result">等待测试结果...</div>
+    </div>
+
+    <script>
+        async function testImageUpload() {
+            const fileInput = document.getElementById('imageInput');
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.textContent = '❌ 请先选择一张图片！';
+                return;
+            }
+            
+            resultDiv.textContent = '🔄 正在处理图片...';
+            
+            try {
+                // 将图片转换为base64
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = async function(e) {
+                    const base64Image = e.target.result;
+                    
+                    console.log('📤 发送图片数据:', {
+                        message: '请详细描述这张图片的内容，如果是数学题请帮我解答',
+                        image: base64Image,
+                        type: 'image'
+                    });
+                    
+                    try {
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                message: '请详细描述这张图片的内容，如果是数学题请帮我解答',
+                                image: base64Image,
+                                type: 'image'
+                            }),
+                        });
+
+                        const data = await response.json();
+                        
+                        console.log('📥 服务器响应:', data);
+                        
+                        resultDiv.innerHTML = `
+<strong>✅ 响应状态:</strong> ${response.status}
+<strong>🤖 使用模型:</strong> ${data.model || '未知'}
+<strong>📊 成功状态:</strong> ${data.success ? '成功' : '失败'}
+
+<strong>💬 AI回复:</strong>
+${data.success ? data.response : data.error}
+
+<strong>🔧 调试信息:</strong>
+${JSON.stringify(data, null, 2)}
+                        `;
+                        
+                        if (data.success) {
+                            resultDiv.style.background = 'rgba(76, 175, 80, 0.3)';
+                        } else {
+                            resultDiv.style.background = 'rgba(244, 67, 54, 0.3)';
+                        }
+                        
+                    } catch (error) {
+                        console.error('💥 请求失败:', error);
+                        resultDiv.textContent = `💥 请求失败: ${error.message}`;
+                        resultDiv.style.background = 'rgba(244, 67, 54, 0.3)';
+                    }
+                };
+                
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('💥 处理失败:', error);
+                resultDiv.textContent = `💥 处理失败: ${error.message}`;
+                resultDiv.style.background = 'rgba(244, 67, 54, 0.3)';
+            }
+        }
+        
+        async function testTextOnly() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = '🔄 发送纯文本消息...';
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: '你好，我是来测试的！'
+                    }),
+                });
+
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+<strong>✅ 响应状态:</strong> ${response.status}
+<strong>🤖 使用模型:</strong> ${data.model || '未知'}
+<strong>📊 成功状态:</strong> ${data.success ? '成功' : '失败'}
+
+<strong>💬 AI回复:</strong>
+${data.success ? data.response : data.error}
+                `;
+                
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(76, 175, 80, 0.3)';
+                } else {
+                    resultDiv.style.background = 'rgba(244, 67, 54, 0.3)';
+                }
+                
+            } catch (error) {
+                console.error('💥 请求失败:', error);
+                resultDiv.textContent = `💥 请求失败: ${error.message}`;
+                resultDiv.style.background = 'rgba(244, 67, 54, 0.3)';
+            }
+        }
+        
+        function clearResult() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = '等待测试结果...';
+            resultDiv.style.background = 'rgba(0, 0, 0, 0.3)';
+        }
+    </script>
+</body>
+</html> 

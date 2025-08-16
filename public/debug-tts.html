@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS调试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input, button, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 CosyVoice TTS调试页面</h1>
+        
+        <input type="text" id="textInput" placeholder="输入要转换为语音的文本..." value="你好，这是一个CosyVoice语音合成测试。">
+        
+        <button id="testBtn" onclick="testTTS()">🎤 调试TTS API</button>
+        
+        <audio id="audioPlayer" controls style="width: 100%; margin-top: 10px; display: none;"></audio>
+        
+        <h3>调试日志：</h3>
+        <div id="log" class="log"></div>
+        
+        <button onclick="clearLog()">清除日志</button>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+        
+        async function testTTS() {
+            const textInput = document.getElementById('textInput');
+            const testBtn = document.getElementById('testBtn');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            const text = textInput.value.trim();
+            if (!text) {
+                log('❌ 错误：请输入要转换的文本');
+                return;
+            }
+            
+            testBtn.disabled = true;
+            testBtn.textContent = '🔄 正在测试...';
+            
+            try {
+                log('📤 开始调用TTS API...');
+                log(`📝 文本内容: "${text}"`);
+                
+                const formData = new FormData();
+                formData.append('text', text);
+                formData.append('format', 'mp3');
+                formData.append('sample_rate', '22050');
+                
+                log('📦 构建FormData完成');
+                log('🌐 发送POST请求到 /api/tts');
+                
+                const startTime = Date.now();
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    body: formData
+                });
+                const endTime = Date.now();
+                
+                log(`⏱️ 请求耗时: ${endTime - startTime}ms`);
+                log(`📊 响应状态: ${response.status} ${response.statusText}`);
+                
+                // 记录响应头
+                log('📋 响应头信息:');
+                response.headers.forEach((value, key) => {
+                    log(`  ${key}: ${value}`);
+                });
+                
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    log(`🔍 内容类型: ${contentType}`);
+                    
+                    if (contentType && contentType.includes('audio')) {
+                        log('🎵 检测到音频响应，开始处理...');
+                        
+                        const audioBlob = await response.blob();
+                        log(`📏 音频大小: ${audioBlob.size} bytes`);
+                        
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        audioPlayer.src = audioUrl;
+                        audioPlayer.style.display = 'block';
+                        
+                        log('✅ CosyVoice音频生成成功！');
+                        
+                        try {
+                            await audioPlayer.play();
+                            log('🔊 开始播放音频');
+                        } catch (playError) {
+                            log(`⚠️ 自动播放失败: ${playError.message}`);
+                            log('💡 请手动点击播放按钮');
+                        }
+                        
+                    } else if (contentType && contentType.includes('json')) {
+                        log('📄 检测到JSON响应，可能是异步任务...');
+                        
+                        const result = await response.json();
+                        log('📊 JSON响应内容:');
+                        log(JSON.stringify(result, null, 2));
+                        
+                        if (result.task_id) {
+                            log('🔄 检测到异步任务，开始轮询...');
+                            await pollTaskStatus(result.task_id);
+                        } else if (result.fallback === 'browser-tts') {
+                            log('⚠️ API返回fallback指示，CosyVoice不可用');
+                            log(`❌ 错误信息: ${result.error}`);
+                            if (result.details) {
+                                log(`📝 详细信息: ${result.details}`);
+                            }
+                        } else {
+                            log('❓ 未知的JSON响应格式');
+                        }
+                    } else {
+                        log(`❓ 未知的响应类型: ${contentType}`);
+                        const text = await response.text();
+                        log(`📝 响应内容: ${text}`);
+                    }
+                } else {
+                    log(`❌ API请求失败: ${response.status}`);
+                    try {
+                        const errorData = await response.json();
+                        log('📊 错误响应:');
+                        log(JSON.stringify(errorData, null, 2));
+                    } catch {
+                        const errorText = await response.text();
+                        log(`📝 错误文本: ${errorText}`);
+                    }
+                }
+                
+            } catch (error) {
+                log(`💥 请求异常: ${error.message}`);
+                log(`📚 错误堆栈: ${error.stack}`);
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = '🎤 调试TTS API';
+            }
+        }
+        
+        async function pollTaskStatus(taskId) {
+            const maxAttempts = 20;
+            let attempts = 0;
+            
+            log(`🔄 开始轮询任务状态，任务ID: ${taskId}`);
+            
+            const pollInterval = setInterval(async () => {
+                attempts++;
+                log(`📡 轮询第 ${attempts} 次...`);
+                
+                try {
+                    const response = await fetch(`/api/tts/task?task_id=${taskId}`);
+                    const result = await response.json();
+                    
+                    log(`📊 轮询响应: ${JSON.stringify(result, null, 2)}`);
+                    
+                    if (result.status === 'SUCCESS' && result.audio_url) {
+                        clearInterval(pollInterval);
+                        log('✅ 任务完成，下载音频...');
+                        
+                        const audioResponse = await fetch(result.audio_url);
+                        const audioBlob = await audioResponse.blob();
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        
+                        const audioPlayer = document.getElementById('audioPlayer');
+                        audioPlayer.src = audioUrl;
+                        audioPlayer.style.display = 'block';
+                        
+                        log('🎵 音频下载完成，可以播放了！');
+                        
+                    } else if (result.status === 'FAILED') {
+                        clearInterval(pollInterval);
+                        log(`❌ 任务失败: ${result.error}`);
+                        
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        log('⏰ 轮询超时');
+                    } else {
+                        log(`⏳ 任务进行中，状态: ${result.status || '未知'}`);
+                    }
+                    
+                } catch (error) {
+                    log(`💥 轮询错误: ${error.message}`);
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        log('❌ 轮询失败');
+                    }
+                }
+            }, 2000);
+        }
+        
+        // 页面加载时显示信息
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 TTS调试页面已加载');
+            log('💡 这个页面用于调试CosyVoice TTS API的问题');
+            log('📝 输入文本后点击调试按钮查看详细的API调用过程');
+        });
+    </script>
+</body>
+</html> 
